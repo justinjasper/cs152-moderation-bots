@@ -71,43 +71,111 @@ class ModBot(discord.Client):
     async def batch_process_messages(self):
         """Process messages in batches every interval"""
         while True:
-            await asyncio.sleep(self.batch_interval)
-            
-            if not self.batch_messages:
-                continue
-            
-            print(f"[BATCH] Processing {len(self.batch_messages)} messages")
-            
-            # Create batch text
-            batch_text = "\n".join([f"{msg['user']}: {msg['content']}" for msg in self.batch_messages])
-            
-            # Analyze with Gemini
-            prompt = f"""
-            Analyze these Discord messages for scams:
-            
-            {batch_text}
-            
-            If any message contains scams, respond with: 
-            "SCAM DETECTED: [username]
-            MESSAGE: [the scam message]
-            REASON: [brief reason why it's a scam]"
-            
-            If no scams, respond with: "NO SCAMS"
-            """
-            
-            response = self.gemini_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            
-            # Check for scam detection
-            if "SCAM DETECTED:" in response.text:
-                # Send alert to mod channel
-                for guild_id, mod_channel in self.mod_channels.items():
-                    await mod_channel.send(f"{response.text}")
-            
-            # Clear batch
-            self.batch_messages = []
+            try:
+                await asyncio.sleep(self.batch_interval)
+                
+                if not self.batch_messages:
+                    continue
+                
+                print(f"[BATCH] Processing {len(self.batch_messages)} messages")
+                
+                # Create batch text
+                batch_text = "\n".join([f"{msg['user']}: {msg['content']}" for msg in self.batch_messages])
+                
+                # Analyze with Gemini with timeout
+                prompt = f"""
+                Analyze these Discord messages for scams:
+                
+                {batch_text}
+                
+                If any message contains scams, respond with: 
+                "SCAM DETECTED: [username]
+                MESSAGE: [the scam message]
+                REASON: [brief reason why it's a scam]"
+                
+                If no scams, respond with: "NO SCAMS"
+                """
+                
+                try:
+                    # Use asyncio.wait_for to add timeout
+                    response = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            self.gemini_client.models.generate_content,
+                            model="gemini-2.0-flash",
+                            contents=prompt
+                        ),
+                        timeout=10.0  # 10 second timeout
+                    )
+                    
+                    # Check for scam detection
+                    if "SCAM DETECTED:" in response.text:
+                        # Parse the response to group by user
+                        scam_users = {}  # Dict to track scam messages per user
+                        
+                        # Split response into sections for each detected scam
+                        scam_sections = response.text.split("SCAM DETECTED:")[1:]  # Skip empty first split
+                        for section in scam_sections:
+                            lines = section.strip().split("\n")
+                            if len(lines) >= 3:  # Ensure we have username, message, and reason
+                                username = lines[0].strip()
+                                message = lines[1].replace("MESSAGE:", "").strip()
+                                reason = lines[2].replace("REASON:", "").strip()
+                                
+                                # Group by username
+                                if username not in scam_users:
+                                    scam_users[username] = {
+                                        'messages': [],
+                                        'reasons': set()
+                                    }
+                                scam_users[username]['messages'].append(message)
+                                scam_users[username]['reasons'].add(reason)
+                        
+                        # Create one report per user
+                        for username, data in scam_users.items():
+                            # Create a new report instance
+                            report = Report(self)
+                            
+                            # Initialize report data
+                            report_data = {
+                                'reporter': 'AutoMod',
+                                'reported_user': username,
+                                'reason': 'Fraud/Scam - Auto-detected',
+                                'message_content': '\n'.join(data['messages']),
+                                'message_link': '\n'.join([msg['link'] for msg in self.batch_messages if msg['user'] == username]),
+                                'timestamp': datetime.now(),
+                                'status': 'pending',
+                                'auto_detected': True,
+                                'detection_reasons': list(data['reasons'])
+                            }
+                            
+                            # Generate a unique report ID using the instance
+                            report_id = report.generate_report_id()
+                            Report.active_reports[report_id] = report_data
+                            
+                            # Notify moderators
+                            for guild_id, mod_channel in self.mod_channels.items():
+                                await mod_channel.send(
+                                    f"**Auto-Generated Scam Report**\n"
+                                    f"Report ID: {report_id}\n"
+                                    f"Reported User: {username}\n"
+                                    f"Detected Messages:\n```\n{report_data['message_content']}\n```\n"
+                                    f"Detection Reasons:\n- " + "\n- ".join(report_data['detection_reasons']) + "\n"
+                                    f"\nUse `review {report_id}` to process this report."
+                                )
+                
+                except asyncio.TimeoutError:
+                    print("[BATCH] Gemini API call timed out after 10 seconds")
+                    continue
+                except Exception as e:
+                    print(f"[BATCH] Error processing messages: {str(e)}")
+                    continue
+                finally:
+                    # Clear batch regardless of success/failure
+                    self.batch_messages = []
+                    
+            except Exception as e:
+                print(f"[BATCH] Unexpected error in batch processing: {str(e)}")
+                await asyncio.sleep(5)  # Wait a bit before retrying
 
     async def on_message(self, message):
         '''
@@ -176,15 +244,13 @@ class ModBot(discord.Client):
         if not message.channel.name == f'group-{self.group_num}':
             return
 
-        # Forward the message to the mod channel
-        mod_channel = self.mod_channels[message.guild.id]
-        await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
-        
         # Add to batch for processing
         self.batch_messages.append({
             'user': message.author.name,
             'content': message.content,
-            'timestamp': datetime.now()
+            'timestamp': datetime.now(),
+            'link': message.jump_url,  # Store the message link
+            'message': message  # Store the full message object
         })
 
     async def handle_mod_channel(self, message):
