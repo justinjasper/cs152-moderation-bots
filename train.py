@@ -15,8 +15,13 @@ from sklearn.metrics import classification_report
 from sklearn.svm import SVC
 from sklearn.calibration import CalibratedClassifierCV
 
-MODEL_OUTPUT_PATH = "0.9_model.pkl"
-RANDOM_STATE = 152
+# === Tunable Hyperparameters ===
+RANDOM_STATE = 42
+TEST_SIZE = 0.2
+MAX_FEATURES = 5000
+MODEL_OUTPUT_PATH = "model.pkl"
+#DATA_PATH = "pb_detailed_100.csv"
+DATA_PATH = "detailed2_100.csv"
 
 df = pd.read_csv("LLM_train.csv")
 df["Severity"] = df["Severity"].astype(int)

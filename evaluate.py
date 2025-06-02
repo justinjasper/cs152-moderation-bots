@@ -7,12 +7,16 @@ import seaborn as sns
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics import confusion_matrix, classification_report
 
-# Apparently these functions are needed for the pipeline
+# === Paths ===
+MODEL_PATH = "model.pkl"
+#DATA_PATH = "pb_detailed_100.csv"
+DATA_PATH = "detailed2_100.csv"
+
 def extract_features(df):
     df = df.copy()
     df["cash_count"] = df["Conversation"].apply(lambda x: len(re.findall(r"\$\d+", x)))
     df["urgency_words"] = df["Conversation"].apply(count_urgency_words)
-    df["url_count"] = df["Conversation"].apply(lambda x: len(re.findall(r"http[s]?://|www\.|\[.*?\]\(.*?\)|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", x)))
+    df["url_count"] = df["Conversation"].apply(lambda x: len(re.findall(r"https?://[^\s\[\]]+(?:\.[^\s\[\]]{2,3})[a-zA-Z0-9.-]*", x)))
     return df[["cash_count", "urgency_words", "url_count"]]
 
 def count_urgency_words(text):
