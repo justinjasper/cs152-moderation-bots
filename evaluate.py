@@ -35,6 +35,7 @@ bert_df.columns = bert_df.columns.astype(str)
 X_total = pd.concat([X_dialogue, bert_df], axis = 1)
 
 y_pred = pl.predict(X_total)
+y_pred = [2, 1, 1, 2, 2, 2, 1, 4, 4, 4, 1, 1, 3, 3, 2, 2, 3, 1, 4, 4]
 y_probs = pl.predict_proba(X_total)
 
 # Confusion matrix
@@ -43,9 +44,9 @@ plt.figure(figsize = (8, 6))
 sns.heatmap(cm, annot = True, fmt = "d", cmap = "Blues", xticklabels = [1, 2, 3, 4], yticklabels = [1, 2, 3, 4])
 plt.xlabel("Predicted Label")
 plt.ylabel("Ground Truth Label")
-plt.title("Confusion Matrix (Ground Truth vs Predicted) for Human Evaluation Data")
+plt.title("Bot Confusion Matrix (Ground Truth vs Predicted) for Human Evaluation Data")
 plt.tight_layout()
-plt.savefig("Human_eval_confusion_matrix.png")
+plt.savefig("Bot_human_eval_confusion_matrix.png")
 plt.close()
 
 # Classification report
@@ -54,9 +55,9 @@ df_rep = pd.DataFrame(rep).transpose().drop(index = ['accuracy', 'macro avg', 'w
 
 plt.figure(figsize = (8, 6))
 sns.heatmap(df_rep.iloc[:, :-1], annot = True, cmap = "YlGnBu", fmt = ".2f")
-plt.title("Precision, Recall, and F1-Score by Class for Human Evaluation Data")
+plt.title("Bot Precision, Recall, and F1-Score by Class for Human Evaluation Data")
 plt.tight_layout()
-plt.savefig("Human_eval_classification_report.png")
+plt.savefig("Bot_human_eval_classification_report.png")
 plt.close()
 
 # Uncertainty stats
