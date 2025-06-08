@@ -2,7 +2,19 @@
 
 [Link to Demo Video](https://m.youtube.com/watch?v=urULtaDcHc8&feature=youtu.be)
 
+Figures:
 
+![Bot Classification Report](Bot_human_eval_classification_report.png)
+
+![Bot Confusion Matrix](Bot_human_eval_confusion_matrix.png)
+
+![Human Classification Report](Human_eval_classification_report.png)
+
+![Human Confusion Matrix](Human_eval_confusion_matrix.png)
+
+![LLM Classification Report](LLM_eval_classification_report.png)
+
+![LLM Confusion Matrix](LLM_eval_confusion_matrix.png)
 
 # CS 152 - Trust and Safety Engineering
 ## Discord Bot Framework Code
