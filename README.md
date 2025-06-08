@@ -1,3 +1,9 @@
+# Deliverables
+
+[Link to Demo Video](https://m.youtube.com/watch?v=urULtaDcHc8&feature=youtu.be)
+
+
+
 # CS 152 - Trust and Safety Engineering
 ## Discord Bot Framework Code
 
